@@ -17,13 +17,18 @@ interface SessionTokenResponse {
  * Generates a JWT token for CDP API authentication
  * @param keyName - The CDP API key name (KEY_NAME)
  * @param keySecret - The CDP API private key (KEY_SECRET)
+ * @param requestMethod - HTTP method for the request (default: 'POST')
+ * @param requestHost - Host for the request (default: 'api.developer.coinbase.com')
+ * @param requestPath - Path for the request (default: '/onramp/v1/token')
  * @returns Promise of signed JWT token
  */
-export async function generateJWT(keyName: string, keySecret: string): Promise<string> {
-  const requestMethod = 'POST';
-  const requestHost = 'api.developer.coinbase.com';
-  const requestPath = '/onramp/v1/token';
-  
+export async function generateJWT(
+  keyName: string, 
+  keySecret: string, 
+  requestMethod: string = 'POST',
+  requestHost: string = 'api.developer.coinbase.com',
+  requestPath: string = '/onramp/v1/token'
+): Promise<string> {
   try {
     console.log('Generating JWT with:');
     console.log('- API Key ID:', keyName.substring(0, 8) + '...');
@@ -178,41 +183,49 @@ export function generateOnrampURL(params: {
 }
 
 /**
- * Fetches the transaction status for a user
- * @param jwt - JWT Bearer token for authentication
- * @param partnerUserId - Unique ID representing the user
- * @param pageSize - Number of transactions to return per page
- * @param pageKey - Reference to next page of transactions
- * @returns Transaction status data or null if fetch fails
+ * Get transaction status for a partner user ID
+ * @param jwt - JWT token for authentication
+ * @param partnerUserId - Partner user ID to check transactions for
+ * @param pageSize - Number of transactions to return (default: 1)
+ * @returns Promise of transaction status response
  */
 export async function getTransactionStatus(
   jwt: string,
   partnerUserId: string,
-  pageSize: number = 1,
-  pageKey?: string
-): Promise<any | null> {
+  pageSize: number = 1
+): Promise<any> {
   try {
-    let url = `https://api.developer.coinbase.com/onramp/v1/buy/user/${partnerUserId}/transactions?page_size=${pageSize}`;
+    // Important: This API requires server-side authentication with JWT
+    // It cannot be accessed directly from a browser without authorization
+    const url = `https://api.developer.coinbase.com/onramp/v1/buy/user/${partnerUserId}/transactions?page_size=${pageSize}`;
     
-    if (pageKey) {
-      url += `&page_key=${pageKey}`;
-    }
+    console.log(`Checking transaction status for partner user ID: ${partnerUserId}`);
+    console.log(`API URL: ${url}`);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${jwt}`
+        'Authorization': `Bearer ${jwt}`,
+        'Accept': 'application/json'
       }
     });
     
+    const responseText = await response.text();
+    console.log(`Response status: ${response.status}`);
+    console.log(`Response body: ${responseText}`);
+    
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Failed to fetch transaction status: ${response.status} ${errorText}`);
+      throw new Error(`Failed to get transaction status: ${response.status} ${responseText}`);
     }
     
-    return await response.json();
+    try {
+      return JSON.parse(responseText);
+    } catch (jsonError) {
+      console.error('Error parsing JSON response:', jsonError);
+      throw new Error(`Invalid JSON response: ${responseText}`);
+    }
   } catch (error) {
-    console.error('Error fetching transaction status:', error);
-    return null;
+    console.error('Error getting transaction status:', error);
+    throw error;
   }
 }

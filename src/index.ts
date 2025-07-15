@@ -79,26 +79,25 @@ async function runOnrampDemo() {
     // Step 5: Demonstrate transaction status check (optional)
     console.log('\nStep 5: Transaction Status API Demo');
     console.log(`Partner User ID: ${partnerUserId}`);
-    console.log('In a real application, after the user completes a transaction, you can check its status using:');
+    console.log('Checking transaction status with proper JWT authentication...');
     
-    // This is a demonstration of how to use the Transaction Status API
-    // In a real application, you would call this after the user completes a transaction
-    console.log('\nExample of checking transaction status:');
-    console.log(`GET https://api.developer.coinbase.com/onramp/v1/buy/user/${partnerUserId}/transactions?page_size=1`);
-    
-    // Uncomment the following code to actually check transaction status
-    // Note: This will return no transactions until a user completes a transaction with this partnerUserId
-    /*
-    console.log('\nChecking for transactions...');
-    const transactionStatus = await getTransactionStatus(jwt, partnerUserId, 1);
-    
-    if (transactionStatus && transactionStatus.transactions && transactionStatus.transactions.length > 0) {
-      console.log('Transaction found:');
-      console.log(JSON.stringify(transactionStatus.transactions[0], null, 2));
-    } else {
-      console.log('No transactions found for this partner user ID yet.');
+    try {
+      // Generate a new JWT specifically for the transaction status API
+      // The path needs to match the API endpoint we're calling
+      const requestPath = `/onramp/v1/buy/user/${partnerUserId}/transactions`;
+      const requestMethod = 'GET';
+      const requestHost = 'api.developer.coinbase.com';
+      
+      console.log('Generating JWT for transaction status API...');
+      const statusJwt = await generateJWT(keyName, keySecret, requestMethod, requestHost, requestPath);
+      
+      // Now use this JWT to authenticate the transaction status request
+      const transactionStatus = await getTransactionStatus(statusJwt, partnerUserId);
+      console.log('Transaction Status Response:', JSON.stringify(transactionStatus, null, 2));
+    } catch (error: any) {
+      console.log('Error checking transaction status:', error.message || 'Unknown error');
+      console.log('Note: This is expected if no transactions exist for this partner user ID yet.');
     }
-    */
     
     // Summary
     console.log('\n------------------------------------------------');

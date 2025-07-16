@@ -99,20 +99,6 @@ async function runOnrampDemo() {
       console.log('Note: This is expected if no transactions exist for this partner user ID yet.');
     }
     
-    // Summary
-    console.log('\n------------------------------------------------');
-    console.log('SUMMARY: Coinbase Onramp with Secure Init');
-    console.log('------------------------------------------------');
-    console.log('1. Generated JWT token using CDP API key');
-    console.log('2. Created session token with wallet address and networks');
-    console.log('3. Generated onramp URL with session token (Secure Init)');
-    console.log('4. Demonstrated how to track transactions');
-    console.log('\nTo use this in production:');
-    console.log('- Replace the sample wallet address with your user\'s actual address');
-    console.log('- Implement proper error handling and retries');
-    console.log('- Consider implementing webhooks for transaction notifications');
-    console.log('------------------------------------------------');
-    
   } catch (error) {
     console.error('Error in Onramp demo:', error);
   }

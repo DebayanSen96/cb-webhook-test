@@ -1,11 +1,11 @@
 import dotenv from 'dotenv';
 import express from 'express';
-import { Coinbase, Webhook } from '@coinbase/coinbase-sdk';
 import {
   generateJWT,
   generateSessionToken,
   formatAddressesForToken,
-  generateOnrampURL
+  generateOnrampURL,
+  getTransactionStatus
 } from './session';
 
 // -------------------- CONFIG --------------------
@@ -25,25 +25,44 @@ const ASSETS = ['ETH'];
 const PORT = 3000;
 
 // -------------------- HELPERS --------------------
-async function initSDK() {
-  Coinbase.configure({ apiKeyName: KEY_NAME, privateKey: KEY_SECRET });
+async function createOnrampWebhook(notificationUri: string, signatureHeader: string) {
+  const requestPath = '/onramp/v1/webhooks';
+  const jwt = await generateJWT(KEY_NAME, KEY_SECRET, 'POST', 'api.developer.coinbase.com', requestPath);
+  const resp = await fetch(`https://api.developer.coinbase.com${requestPath}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${jwt}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ notification_uri: notificationUri, signature_header: signatureHeader })
+  });
+  if (!resp.ok) throw new Error(`Create webhook failed: ${resp.status} ${await resp.text()}`);
+  return await resp.json();
 }
 
-async function createWebhook(notificationUri: string) {
-  return await Webhook.create({
-    networkId: 'base-mainnet',
-    notificationUri,
-    eventType: 'wallet_activity',
-    eventTypeFilter: {
-      addresses: [WALLET_ADDRESS],
-      wallet_id: ''
-    }
+async function listOnrampWebhooks() {
+  const requestPath = '/onramp/v1/webhooks';
+  const jwt = await generateJWT(KEY_NAME, KEY_SECRET, 'GET', 'api.developer.coinbase.com', requestPath);
+  const resp = await fetch(`https://api.developer.coinbase.com${requestPath}`, {
+    headers: { 'Authorization': `Bearer ${jwt}` }
   });
+  if (!resp.ok) throw new Error(`List webhooks failed: ${resp.status} ${await resp.text()}`);
+  return await resp.json();
 }
+
+async function deleteOnrampWebhook(id: string) {
+  const requestPath = `/onramp/v1/webhooks/${id}`;
+  const jwt = await generateJWT(KEY_NAME, KEY_SECRET, 'DELETE', 'api.developer.coinbase.com', requestPath);
+  const resp = await fetch(`https://api.developer.coinbase.com${requestPath}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${jwt}` }
+  });
+  if (!resp.ok) throw new Error(`Delete webhook failed: ${resp.status} ${await resp.text()}`);
+} 
 
 // -------------------- MAIN FLOW --------------------
 (async () => {
-  await initSDK();
+  
 
   // 1. Start webhook server
   const app = express();
@@ -74,18 +93,21 @@ async function createWebhook(notificationUri: string) {
   });
   console.log('Onramp URL:', onrampUrl);
 
-  // 3. Create webhook
-  const publicWebhookUrl = 'https://example.com/callback'; // dummy URL because Coinbase rejects localhost
-  const webhook = await createWebhook(publicWebhookUrl);
-  console.log('Created webhook:', webhook.toString());
-
-  // 4. Verify webhook exists
-  const list = await Webhook.list();
-  console.log('Total webhooks:', list.data.length);
-
-  // 5. Delete webhook
-  await webhook.delete();
-  console.log('Webhook deleted.');
+  // 3. Poll transaction status until terminal state (success | failed | canceled)
+  console.log('Polling transaction status (max 5 attempts)...');
+  for (let i = 0; i < 5; i++) {
+    const path = `/onramp/v1/buy/user/${partnerUserId}/transactions`;
+    const statusJwt = await generateJWT(KEY_NAME, KEY_SECRET, 'GET', 'api.developer.coinbase.com', path);
+    const resp = await getTransactionStatus(statusJwt, partnerUserId);
+    const latest = resp?.data?.[0];
+    if (latest) {
+      console.log(`Attempt ${i+1}: status = ${latest.status}`);
+      if (['success', 'failed', 'canceled'].includes(latest.status)) break;
+    } else {
+      console.log(`Attempt ${i+1}: no transaction yet`);
+    }
+    await new Promise(r => setTimeout(r, 5000)); // wait 5s
+  }
 
   process.exit(0);
 })();

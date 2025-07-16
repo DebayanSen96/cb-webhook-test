@@ -7,19 +7,15 @@ import {
   getTransactionStatus
 } from './session';
 
-// Load environment variables
 dotenv.config();
 
-// Get API credentials from environment variables
 const keySecret = process.env.KEY_SECRET;
 const keyName = process.env.KEY_NAME;
 
-// Sample wallet address and networks
 const walletAddress = '0x1234567890123456789012345678901234567890';
 const networks = ['ethereum', 'base'];
 const assets = ['ETH', 'USDC'];
 
-// Generate a unique partner user ID (for transaction tracking)
 const partnerUserId = `user_${Date.now()}`;
 
 async function runOnrampDemo() {
@@ -31,18 +27,15 @@ async function runOnrampDemo() {
     console.log('Starting Coinbase Onramp Demo with Secure Init...');
     console.log('------------------------------------------------');
     
-    // Step 1: Generate JWT token
     console.log('Step 1: Generating JWT token...');
     const jwt = await generateJWT(keyName, keySecret);
     console.log('JWT token generated successfully');
     
-    // Step 2: Format addresses for token request
     console.log('\nStep 2: Formatting addresses for session token request...');
     const formattedAddresses = formatAddressesForToken(walletAddress, networks);
     console.log('Using wallet address:', walletAddress);
     console.log('With networks:', networks.join(', '));
     
-    // Step 3: Generate session token
     console.log('\nStep 3: Generating session token...');
     const sessionToken = await generateSessionToken(jwt, {
       addresses: formattedAddresses,
@@ -55,11 +48,9 @@ async function runOnrampDemo() {
     
     console.log('Session token generated successfully');
     
-    // Step 4: Generate onramp URL with Secure Init
     console.log('\nStep 4: Generating onramp URL with Secure Init...');
     const onrampUrl = generateOnrampURL({
       sessionToken: sessionToken,
-      // Note: appId and addresses are no longer included in URL params with Secure Init
       defaultNetwork: 'ethereum',
       defaultAsset: 'ETH',
       presetFiatAmount: 100,
@@ -76,14 +67,12 @@ async function runOnrampDemo() {
     console.log('2. Allow users to purchase crypto with fiat currency');
     console.log('3. Send purchased crypto directly to the specified wallet address');
     
-    // Step 5: Demonstrate transaction status check (optional)
+    
     console.log('\nStep 5: Transaction Status API Demo');
     console.log(`Partner User ID: ${partnerUserId}`);
     console.log('Checking transaction status with proper JWT authentication...');
     
     try {
-      // Generate a new JWT specifically for the transaction status API
-      // The path needs to match the API endpoint we're calling
       const requestPath = `/onramp/v1/buy/user/${partnerUserId}/transactions`;
       const requestMethod = 'GET';
       const requestHost = 'api.developer.coinbase.com';
@@ -91,7 +80,6 @@ async function runOnrampDemo() {
       console.log('Generating JWT for transaction status API...');
       const statusJwt = await generateJWT(keyName, keySecret, requestMethod, requestHost, requestPath);
       
-      // Now use this JWT to authenticate the transaction status request
       const transactionStatus = await getTransactionStatus(statusJwt, partnerUserId);
       console.log('Transaction Status Response:', JSON.stringify(transactionStatus, null, 2));
     } catch (error: any) {
@@ -104,5 +92,4 @@ async function runOnrampDemo() {
   }
 }
 
-// Run the demo
 runOnrampDemo();
